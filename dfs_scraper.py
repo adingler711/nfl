@@ -56,3 +56,19 @@ def update_results(years, weeks,
     prev_dfs_results_df.to_csv(previous_dfs_results, index=False)
 
     return prev_dfs_results_df
+
+
+if __name__ == '__main__':
+
+    import pandas as pd
+
+    #  ['12'] #list(map(str,range(1,4))) # 1,18)
+    WEEKS = list(map(str, range(1, 19)))
+    #  ['2017]
+    YEARS = list(map(str, range(2011, 2018)))
+
+    previous_DFS_DK_Results = 'DFS_NFL_Salaries/DFS_DK_Historical_Salary.csv'
+    previous_DFS_FD_Results = 'DFS_NFL_Salaries/DFS_FD_Historical_Salary.csv'
+    DFS_historical_Results = update_results(YEARS, WEEKS,
+                                            previous_DFS_FD_Results,
+                                            prev_results=False)
