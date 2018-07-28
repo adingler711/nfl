@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from ftps_functions import map_historical_ftps
 
 
@@ -41,6 +42,11 @@ def create_player_data(cols_keep,
     offense_df_merged_w_ftps = add_injury_info(injury_file_path, offense_df_merged_w_ftps)
     offense_df_merged_w_ftps = backfill_posd(offense_df_merged_w_ftps)
 
+    # Add opp to dataframe
+    offense_df_merged_w_ftps.loc[:, 'opp'] = assign_opp(offense_df_merged_w_ftps)
+    # Add an indicator that identifies home games
+    offense_df_merged_w_ftps.loc[:, 'home_indicator'] = home_indicator(offense_df_merged_w_ftps)
+
     return offense_df_merged_w_ftps
 
 
@@ -79,6 +85,20 @@ def backfill_posd(player_results_df):
     player_results_df.loc[te_idx, 'posd'] = 'TE'
 
     return player_results_df
+
+
+def assign_opp(df):
+    return np.where(df.loc[:, 'team'] ==
+                    df.loc[:, 'v'],
+                    df.loc[:, 'h'],
+                    df.loc[:, 'v'])
+
+
+def home_indicator(df):
+    return np.where(df.loc[:, 'team'] ==
+                    df.loc[:, 'h'],
+                    1,  # type: int
+                    0)  # type: int
 
 if __name__ == '__main__':
 
