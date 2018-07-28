@@ -3,55 +3,6 @@ import pandas as pd
 from configuration_mapping_file import *
 
 
-dk_scoring_pbp = {
-    'py': lambda x: x * 0.04 + (3. if x >= 300. else 0.),
-    'tdp': lambda x: x * 4.,
-    'ints': lambda x: -1. * x,
-    'ry': lambda x:  x * 0.1 + (3. if x >= 100. else 0.),
-    'tdr': lambda x: x * 6.,
-    'tdret': lambda x: x * 6.,
-    'tdrec': lambda x: x * 6.,
-    'recy': lambda x: x * 0.1,
-    'rec': lambda x: x,
-    'fuml': lambda x: -1 * x,
-    #  'passing_twoptm'  : lambda x : 2*x,
-    #  'rushing_twoptm' : lambda x : 2*x,
-    #  'receiving_twoptm' : lambda x : 2*x
-}
-
-dk_scoring_by_col = {
-    'py': lambda x: x * 0.04,
-    'tdp': lambda x: x * 4.,
-    'ints': lambda x: -1. * x,
-    'ry': lambda x:  x * 0.1,
-    'tdr': lambda x: x * 6.,
-    'tdret': lambda x: x * 6.,
-    'tdrec': lambda x: x * 6.,
-    'recy': lambda x: x * 0.1,
-    'rec': lambda x: x,
-    'fuml': lambda x: -1 * x,
-    #  'passing_twoptm'  : lambda x : 2*x,
-    #  'rushing_twoptm' : lambda x : 2*x,
-    #  'receiving_twoptm' : lambda x : 2*x
-}
-
-fd_scoring_pbp = {
-    'py': lambda x: x * 0.04,
-    'tdp': lambda x: x * 4.,
-    'ints': lambda x: -1. * x,
-    'ry': lambda x:  x * 0.1,
-    'tdr': lambda x: x * 6.,
-    'tdret': lambda x: x * 6.,
-    'tdrec': lambda x: x * 6.,
-    'recy': lambda x: x * 0.1,
-    'rec': lambda x: 0.5 * x,
-    'fuml': lambda x: -2 * x,
-    #  'passing_twoptm'  : lambda x : 2*x,
-    #  'rushing_twoptm' : lambda x : 2*x,
-    #  'receiving_twoptm' : lambda x : 2*x
-}
-
-
 def score_player(player, scoring_pbp):
 
     score = 0
@@ -79,9 +30,9 @@ def calculate_ftps(df, scoring_dict):
     for stat in scoring_dict.keys():
         empty_df.loc[:, stat] = scoring_dict[stat](getattr(df, stat))
         if stat == 'py':
-            empty_df.loc[:, stat] = empty_df[stat].apply(lambda x: fix_pass_stat(x))
+            empty_df.loc[:, stat] = empty_df[stat].apply(lambda x_child: fix_pass_stat(x_child))
         if stat == 'ry':
-            empty_df.loc[:, stat] = empty_df[stat].apply(lambda x: fix_rush_stat(x))
+            empty_df.loc[:, stat] = empty_df[stat].apply(lambda x_child: fix_rush_stat(x_child))
 
     return pd.DataFrame.sum(empty_df, axis=1)
 
