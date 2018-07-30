@@ -36,6 +36,13 @@ team_mapping = {'kan': 'KC',
                 'sdg': 'SD'  # team moved
                 }
 
+teams_moved = {'STL': 'LA',
+               'SD': 'LAC'}
+
+posd_parent_pos_mapping = {'FB': 'RB',
+                           'LWR': 'WR',
+                           'RWR': 'WR',
+                           'SWR': 'WR'}
 
 dk_scoring_pbp = {
     'py': lambda x: x * 0.04 + (3. if x >= 300. else 0.),
