@@ -166,25 +166,63 @@ def find_previous_games(cur_team, team, game_window=4):
     return iter_df
 
 
-def add_prev_games_to_schedule(schedule_df):
+def add_prev_games_to_schedule(schedule_df, team, schedule_cumulative_df):
+
+    cur_team = schedule_df[(schedule_df['v'] == team) |
+                           (schedule_df['h'] == team)]
+
+    # add a teams previous 4 football games to the schedule df
+    cur_team['single_input_vector'] = cur_team[['gid']].apply(tuple, axis=1).apply(list)
+    cur_team['single_input_vector'] = cur_team.single_input_vector.apply(
+        lambda y: [list(y)])
+
+    iter_df = find_previous_games(cur_team, team)
+    schedule_cumulative_df = pd.concat((schedule_cumulative_df, iter_df))
+
+    return schedule_cumulative_df
+
+
+def add_prev_team_stats(team_ftps_allowed, team, team_ftps_allowed_cumulative_df, ftp_team_cols):
+
+    team_ftps_allowed_cur_team = team_ftps_allowed[team_ftps_allowed['opp'] == team]
+    team_ftps_allowed_cur_team[
+        'single_input_vector'] = team_ftps_allowed_cur_team[ftp_team_cols].apply(tuple,
+                                                                                 axis=1).apply(list)
+    team_ftps_allowed_cur_team['single_input_vector'] = team_ftps_allowed_cur_team.single_input_vector.apply(
+        lambda y: [list(y)])
+
+    team_ftps_allowed_iter_df = find_previous_games(team_ftps_allowed_cur_team, team)
+    team_ftps_allowed_cumulative_df = pd.concat((team_ftps_allowed_cumulative_df,
+                                                 team_ftps_allowed_iter_df))
+
+    return team_ftps_allowed_cumulative_df
+
+
+def add_rolling_window_stats(schedule_df, team_ftps_allowed, ftp_team_cols):
 
     unique_teams = set(list(schedule_df['v']) + list(schedule_df['h']))
     schedule_df = schedule_df.sort_values('gid', ascending=True)
-    cumulative_input_df = pd.DataFrame()
+    schedule_cumulative_df = pd.DataFrame()
+    team_ftps_allowed_cumulative_df = pd.DataFrame()
     for team in unique_teams:
-        cur_team = schedule_df[(schedule_df['v'] == team) |
-                               (schedule_df['h'] == team)]
 
-        cur_team['single_input_vector'] = cur_team[['gid']].apply(tuple, axis=1).apply(list)
-        cur_team['single_input_vector'] = cur_team.single_input_vector.apply(
-            lambda y: [list(y)])
+        schedule_cumulative_df = add_prev_games_to_schedule(schedule_df,
+                                                            team,
+                                                            schedule_cumulative_df)
+        team_ftps_allowed_cumulative_df = add_prev_team_stats(team_ftps_allowed,
+                                                              team,
+                                                              team_ftps_allowed_cumulative_df,
+                                                              ftp_team_cols)
 
-        iter_df = find_previous_games(cur_team, team, game_window=4)
-        cumulative_input_df = pd.concat((cumulative_input_df, iter_df))
+    schedule_df = pd.merge(schedule_df, schedule_cumulative_df,
+                           left_index=True, right_index=True)
+    schedule_df = schedule_df.reset_index().drop('index', axis=1)
 
-    schedule_df = pd.merge(schedule_df, cumulative_input_df, left_index=True, right_index=True)
+    team_ftps_allowed = pd.merge(team_ftps_allowed, team_ftps_allowed_cumulative_df,
+                                 left_index=True, right_index=True)
+    team_ftps_allowed = team_ftps_allowed.drop('team', axis=1)
 
-    return schedule_df
+    return schedule_df, team_ftps_allowed
 
 
 if __name__ == '__main__':
