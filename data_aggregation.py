@@ -1,6 +1,8 @@
+import copy
 import pandas as pd
 import numpy as np
 from ftps_functions import map_historical_ftps
+from configuration_mapping_file import *
 
 
 def add_injury_info(injury_file_path, offense_df_merged):
@@ -46,6 +48,9 @@ def create_player_data(cols_keep,
     offense_df_merged_w_ftps.loc[:, 'opp'] = assign_opp(offense_df_merged_w_ftps)
     # Add an indicator that identifies home games
     offense_df_merged_w_ftps.loc[:, 'home_indicator'] = home_indicator(offense_df_merged_w_ftps)
+
+    # update the team abv for teams that moved locations
+    offense_df_merged_w_ftps['team'].replace(teams_moved, inplace=True)
 
     return offense_df_merged_w_ftps
 
@@ -99,6 +104,88 @@ def home_indicator(df):
                     df.loc[:, 'h'],
                     1,  # type: int
                     0)  # type: int
+
+
+def team_ftps_allow(player_results_subset_df):
+
+    team_ftps_allowed = player_results_subset_df.groupby(['year',
+                                                          'wk',
+                                                          'opp',
+                                                          'posd'])[['fp2',
+                                                                    'fp3']].sum().reset_index()
+
+    # aggregate posd to only include QB, WR, RB, TE
+    team_ftps_allowed_parent_pos = copy.deepcopy(team_ftps_allowed)
+    team_ftps_allowed_parent_pos['posd'].replace(posd_parent_pos_mapping,
+                                                 inplace=True)
+    team_ftps_allowed_parent_pos = team_ftps_allowed_parent_pos.groupby(['year',
+                                                                         'wk',
+                                                                         'opp',
+                                                                         'posd'])[['fp2',
+                                                                                   'fp3']].sum().reset_index()
+
+    team_ftps_allowed.rename(columns={'posd': 'posd_level1',
+                                      'fp2': 'fp2_level1',
+                                      'fp3': 'fp3_level1'}, inplace=True)
+    team_ftps_allowed.loc[:, 'posd'] = team_ftps_allowed['posd_level1']
+    team_ftps_allowed['posd'].replace(posd_parent_pos_mapping,
+                                      inplace=True)
+    team_ftps_allowed = pd.merge(team_ftps_allowed_parent_pos,
+                                 team_ftps_allowed,
+                                 on=['year', 'wk', 'opp', 'posd'])
+
+    return team_ftps_allowed
+
+
+# OLD function, maybe delete if do not need
+def find_previous_schedule(schedule_df, team, game_week, game_window=4):
+
+    prev_games = schedule_df[(schedule_df['seas'] <= game_week['seas'].values[0]) &
+                             (schedule_df['wk'] <= game_week['wk'].values[0]) &
+                             ((schedule_df['v'] == team) |
+                              (schedule_df['h'] == team))].tail(game_window + 1)
+
+    return prev_games
+
+
+def find_previous_games(cur_team, team, game_window=4):
+
+    iter_df = pd.DataFrame()
+    for idx in cur_team.index:
+        # create an temporary empty dataframe to assign the 4 day period rolling windows per device
+
+        temp_cur_team_df = cur_team.loc[:idx].tail(game_window + 1).cumsum().loc[idx]
+        temp_df = temp_cur_team_df.to_frame()
+        # The .cumsum() will include the previous day's attribute readings into the new input vector
+        iter_df = pd.concat((iter_df, temp_df[temp_df.index == 'single_input_vector']), axis=1)
+
+    iter_df = iter_df.transpose()
+    iter_df.columns = ['cumulative_gid_vectors']
+    iter_df.loc[:, 'team'] = team
+
+    return iter_df
+
+
+def add_prev_games_to_schedule(schedule_df):
+
+    unique_teams = set(list(schedule_df['v']) + list(schedule_df['h']))
+    schedule_df = schedule_df.sort_values('gid', ascending=True)
+    cumulative_input_df = pd.DataFrame()
+    for team in unique_teams:
+        cur_team = schedule_df[(schedule_df['v'] == team) |
+                               (schedule_df['h'] == team)]
+
+        cur_team['single_input_vector'] = cur_team[['gid']].apply(tuple, axis=1).apply(list)
+        cur_team['single_input_vector'] = cur_team.single_input_vector.apply(
+            lambda y: [list(y)])
+
+        iter_df = find_previous_games(cur_team, team, game_window=4)
+        cumulative_input_df = pd.concat((cumulative_input_df, iter_df))
+
+    schedule_df = pd.merge(schedule_df, cumulative_input_df, left_index=True, right_index=True)
+
+    return schedule_df
+
 
 if __name__ == '__main__':
 
