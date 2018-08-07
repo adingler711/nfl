@@ -44,6 +44,19 @@ posd_parent_pos_mapping = {'FB': 'RB',
                            'RWR': 'WR',
                            'SWR': 'WR'}
 
+gstat_mapping = {'Probable\r': 'Probable',
+                'Questionable\r': 'Questionable'}
+
+ftp_cols_rename = {'fp2':'data_FD_pts',
+                   'fp3':'data_DK_pts',
+                   'DK points': 'actual_dk_pts',
+                   'DK salary': 'actual_dk_salary',
+                   'dk_ftps': 'calc_dk_pts',
+                   'FD points': 'actual_FD_pts',
+                   'FD salary': 'actual_fd_salary',
+                   'fd_ftps': 'calc_pts'
+}
+
 dk_scoring_pbp = {
     'py': lambda x: x * 0.04 + (3. if x >= 300. else 0.),
     'tdp': lambda x: x * 4.,
