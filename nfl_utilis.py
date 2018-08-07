@@ -16,12 +16,13 @@ def open_schedule(armchair_data_path_main, schedule_file):
 def calculate_player_age_days(player_df):
 
     player_df.loc[:, 'dob'] = pd.to_datetime(pd.Series(
-        player_df['dob']), format="%m/%d/%Y")
+        player_df['dob']), format="%m/%d/%Y", exact=False)
+    player_df.loc[:, 'date'] = pd.to_datetime(pd.Series(
+        player_df['date']), format="%m/%d/%Y", exact=False)
 
-    current_date = datetime.datetime.now()
-    date_difference = current_date - player_df['dob']
+    date_difference = player_df['date'] - player_df['dob']
     player_df.loc[:, 'age_days'] = date_difference / datetime.timedelta(days=1)
-    player_df = player_df.drop('dob', axis=1)
+    player_df = player_df.drop(['dob', 'date'], axis=1)
 
     return player_df
 
