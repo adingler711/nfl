@@ -22,13 +22,15 @@ def create_player_data(cols_keep,
                        injury_file,
                        game_file,
                        player_file,
-                       offense_file
+                       offense_file,
+                       schedule_file
                        ):
 
     injury_file_path = armchair_data_path + injury_file
     game_df = pd.read_csv(armchair_data_path + game_file, low_memory=False)
     player_df = pd.read_csv(armchair_data_path + player_file, low_memory=False)
     offense_df = pd.read_csv(armchair_data_path + offense_file, low_memory=False)
+    schedule_df = pd.read_csv(armchair_data_path + schedule_file, low_memory=False)
 
     player_df_drop_cols = ['player', 'posd', 'dcp']
     offense_df_merged = pd.merge(offense_df[cols_keep],
@@ -37,6 +39,10 @@ def create_player_data(cols_keep,
     offense_df_merged_w_game = pd.merge(offense_df_merged,
                                         game_df,
                                         on='gid', how='left')
+
+    offense_df_merged_w_game = pd.merge(offense_df_merged_w_game,
+                                        schedule_df[['date', 'gid']],
+                                        on=['gid'], how='left')
 
     offense_df_merged_w_ftps = map_historical_ftps(dk_historical_pts_file,
                                                    offense_df_merged_w_game)
@@ -168,6 +174,25 @@ def add_rolling_window_stats_team(schedule_df, team_ftps_allowed):
     team_ftps_allowed = team_ftps_allowed.drop('team', axis=1)
 
     return schedule_df, team_ftps_allowed
+
+
+def add_rolling_window_stats_player(player_df, player_non_x_cols):
+
+    ftp_player_cols = list(set(player_df.columns) - set(player_non_x_cols))
+    unique_player = list(player_df['player'].unique())
+    player_df = player_df.sort_values('gid', ascending=True)
+
+    player_ftps_allowed_cumulative_df = pd.DataFrame()
+    for player in unique_player:
+        player_ftps_allowed_cumulative_df = add_prev_player_stats(player_df,
+                                                                  player,
+                                                                  player_ftps_allowed_cumulative_df,
+                                                                  ftp_player_cols)
+
+    player_ftps = pd.merge(player_df, player_ftps_allowed_cumulative_df,
+                           left_index=True, right_index=True)
+
+    return player_ftps
 
 
 def player_data_scoring_only(player_results_df,
