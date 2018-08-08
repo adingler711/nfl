@@ -4,6 +4,12 @@ import numpy as np
 from configuration_mapping_file import *
 
 
+def chunks(l, n):
+    """Yield successive n-sized chunks from l."""
+    for i in range(0, len(l), n):
+        yield l[i:i + n]
+
+
 def open_schedule(armchair_data_path_main, schedule_file):
 
     schedule_df = pd.read_csv(armchair_data_path_main + schedule_file)
@@ -117,7 +123,7 @@ def backfill_posd(player_results_df):
     return player_results_df
 
 
-def find_previous_games_team(cur_team, team, game_window=4):
+def find_previous_games_schedule(cur_team, team, col_rename, game_window=4):
 
     iter_df = pd.DataFrame()
     for idx in cur_team.index:
@@ -126,10 +132,32 @@ def find_previous_games_team(cur_team, team, game_window=4):
         temp_cur_team_df = cur_team.loc[:idx].tail(game_window + 1).cumsum().loc[idx]
         temp_df = temp_cur_team_df.to_frame()
         # The .cumsum() will include the previous day's attribute readings into the new input vector
-        iter_df = pd.concat((iter_df, temp_df[temp_df.index == 'single_input_vector']), axis=1)
+        iter_df = pd.concat((iter_df,
+                             temp_df[(temp_df.index == 'single_input_vector')]),
+                            axis=1)
 
     iter_df = iter_df.transpose()
-    iter_df.columns = ['cumulative_gid_vectors_team']
+    iter_df.columns = col_rename
+    iter_df.loc[:, 'team'] = team
+
+    return iter_df
+
+
+def find_previous_games_team(cur_team, team, col_rename, game_window=4):
+
+    iter_df = pd.DataFrame()
+    for idx in cur_team.index:
+        # create an temporary empty dataframe to assign the 4 day period rolling windows per device
+
+        temp_cur_team_df = cur_team.loc[:idx].tail(game_window + 1).cumsum().loc[idx]
+        temp_df = temp_cur_team_df.to_frame()
+        # The .cumsum() will include the previous day's attribute readings into the new input vector
+        iter_df = pd.concat((iter_df, temp_df[(temp_df.index == 'single_input_vector_dk') |
+                                              (temp_df.index == 'single_input_vector_fd')]),
+                            axis=1)
+
+    iter_df = iter_df.transpose()
+    iter_df.columns = col_rename
     iter_df.loc[:, 'team'] = team
 
     return iter_df
@@ -144,9 +172,12 @@ def find_previous_games_player(cur_player, game_window=4):
         temp_cur_team_df = cur_player.loc[:idx].tail(game_window + 1).cumsum().loc[idx]
         temp_df = temp_cur_team_df.to_frame()
         # The .cumsum() will include the previous day's attribute readings into the new input vector
-        iter_df = pd.concat((iter_df, temp_df[temp_df.index == 'single_input_vector']), axis=1)
+        iter_df = pd.concat((iter_df,
+                             temp_df[(temp_df.index == 'single_input_vector_dk') |
+                                     (temp_df.index == 'single_input_vector_fd')]),
+                            axis=1)
 
     iter_df = iter_df.transpose()
-    iter_df.columns = ['cumulative_gid_vectors_player']
+    iter_df.columns = ['cumulative_gid_vectors_player_dk', 'cumulative_gid_vectors_player_fd']
 
     return iter_df
