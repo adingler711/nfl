@@ -123,61 +123,20 @@ def backfill_posd(player_results_df):
     return player_results_df
 
 
-def find_previous_games_schedule(cur_team, team, col_rename, game_window=4):
+def find_previous_games(cur, vector_dict, game_window=4):
 
     iter_df = pd.DataFrame()
-    for idx in cur_team.index:
+    for idx in cur.index:
         # create an temporary empty dataframe to assign the 4 day period rolling windows per device
 
-        temp_cur_team_df = cur_team.loc[:idx].tail(game_window + 1).cumsum().loc[idx]
+        temp_cur_team_df = cur.loc[:idx][vector_dict.keys()].tail(game_window + 1).cumsum().loc[idx]
         temp_df = temp_cur_team_df.to_frame()
         # The .cumsum() will include the previous day's attribute readings into the new input vector
         iter_df = pd.concat((iter_df,
-                             temp_df[(temp_df.index == 'single_input_vector')]),
+                             temp_df),
                             axis=1)
 
     iter_df = iter_df.transpose()
-    iter_df.columns = col_rename
-    iter_df.loc[:, 'team'] = team
-
-    return iter_df
-
-
-def find_previous_games_team(cur_team, team, col_rename, game_window=4):
-
-    iter_df = pd.DataFrame()
-    for idx in cur_team.index:
-        # create an temporary empty dataframe to assign the 4 day period rolling windows per device
-
-        temp_cur_team_df = cur_team.loc[:idx].tail(game_window + 1).cumsum().loc[idx]
-        temp_df = temp_cur_team_df.to_frame()
-        # The .cumsum() will include the previous day's attribute readings into the new input vector
-        iter_df = pd.concat((iter_df, temp_df[(temp_df.index == 'single_input_vector_dk') |
-                                              (temp_df.index == 'single_input_vector_fd')]),
-                            axis=1)
-
-    iter_df = iter_df.transpose()
-    iter_df.columns = col_rename
-    iter_df.loc[:, 'team'] = team
-
-    return iter_df
-
-
-def find_previous_games_player(cur_player, game_window=4):
-
-    iter_df = pd.DataFrame()
-    for idx in cur_player.index:
-        # create an temporary empty dataframe to assign the 4 day period rolling windows per device
-
-        temp_cur_team_df = cur_player.loc[:idx].tail(game_window + 1).cumsum().loc[idx]
-        temp_df = temp_cur_team_df.to_frame()
-        # The .cumsum() will include the previous day's attribute readings into the new input vector
-        iter_df = pd.concat((iter_df,
-                             temp_df[(temp_df.index == 'single_input_vector_dk') |
-                                     (temp_df.index == 'single_input_vector_fd')]),
-                            axis=1)
-
-    iter_df = iter_df.transpose()
-    iter_df.columns = ['cumulative_gid_vectors_player_dk', 'cumulative_gid_vectors_player_fd']
+    iter_df.columns = vector_dict.values()
 
     return iter_df
