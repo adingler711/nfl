@@ -54,13 +54,15 @@ def create_player_data(cols_keep,
     offense_df_merged_w_ftps = add_injury_info(injury_file_path, offense_df_merged_w_ftps)
     offense_df_merged_w_ftps = backfill_posd(offense_df_merged_w_ftps)
 
+    # update the team abv for teams that moved locations
+    offense_df_merged_w_ftps['team'].replace(teams_moved, inplace=True)
+    offense_df_merged_w_ftps['v'].replace(teams_moved, inplace=True)
+    offense_df_merged_w_ftps['h'].replace(teams_moved, inplace=True)
     # Add opp to dataframe
     offense_df_merged_w_ftps.loc[:, 'opp'] = assign_opp(offense_df_merged_w_ftps)
     # Add an indicator that identifies home games
     offense_df_merged_w_ftps.loc[:, 'home_indicator'] = home_indicator(offense_df_merged_w_ftps)
 
-    # update the team abv for teams that moved locations
-    offense_df_merged_w_ftps['team'].replace(teams_moved, inplace=True)
     offense_df_merged_w_ftps.rename(columns=ftp_cols_rename, inplace=True)
 
     return offense_df_merged_w_ftps
@@ -133,6 +135,12 @@ def add_prev_team_stats(team_ftps_allowed_pivot, team, team_ftps_allowed_cumulat
 
     team_ftps_allowed_iter_df = find_previous_games(team_ftps_allowed_cur_team,
                                                     vector_dict)
+
+    # removing the first game for each team, there are no previous data to predict current game
+    keep_index = team_ftps_allowed_cur_team.index[1:]
+    team_ftps_allowed_iter_df = pd.concat((team_ftps_allowed_cur_team.loc[keep_index][['year', 'wk', 'opp']],
+                                           team_ftps_allowed_iter_df
+                                           ), axis=1)
     team_ftps_allowed_cumulative_df = pd.concat((team_ftps_allowed_cumulative_df,
                                                  team_ftps_allowed_iter_df))
 
@@ -174,6 +182,7 @@ def add_rolling_window_stats_team(schedule_df, team_ftps_allowed):
     [team_ftp_team_cols,
      team_ftps_allowed_pivot] = create_pos_indicators(team_ftps_allowed, team_index_cols)
 
+    team_ftps_allowed_unique = team_ftps_allowed[['year', 'wk', 'opp']].drop_duplicates()
     team_ftp_team_cols_dk = [col for col in team_ftp_team_cols if 'DK' in col]
     team_ftp_team_cols_fd = [col for col in team_ftp_team_cols if 'FD' in col]
 
@@ -206,10 +215,15 @@ def add_rolling_window_stats_team(schedule_df, team_ftps_allowed):
                            left_index=True, right_index=True)
     schedule_df = schedule_df.reset_index().drop('index', axis=1)
 
-    team_ftps_allowed = pd.merge(team_ftps_allowed, team_ftps_allowed_cumulative_df,
-                                 left_index=True, right_index=True)
+    team_ftps_allowed_cum = pd.merge(team_ftps_allowed_unique,
+                                 team_ftps_allowed_cumulative_df,
+                                 on=['year', 'wk', 'opp'], how='right')
 
-    return schedule_df, team_ftps_allowed
+    team_ftps_allowed_cum = pad_sequences_data(team_ftps_allowed_cum, 'cumulative_gid_vectors_team_dk')
+    team_ftps_allowed_cum = pad_sequences_data(team_ftps_allowed_cum, 'cumulative_gid_vectors_team_fd')
+    schedule_df = pad_sequences_data(schedule_df, 'cumulative_gid_vectors_team')
+
+    return schedule_df, team_ftps_allowed_cum
 
 
 def create_ftp_player_cols(player_df, player_non_x_cols):
@@ -226,6 +240,9 @@ def create_ftp_player_cols(player_df, player_non_x_cols):
     fd_ftp_player_cols.remove('data_DK_pts')
     fd_ftp_player_cols.remove('actual_dk_salary')
     fd_ftp_player_cols.remove('actual_fd_salary')
+    # remove opp from pred cols
+    fd_ftp_player_cols.remove('opp')
+    dk_ftp_player_cols.remove('opp')
 
     return dk_ftp_player_cols, fd_ftp_player_cols
 
@@ -267,7 +284,10 @@ def add_rolling_window_stats_player(player_df, player_non_x_cols, save_ftp_cols)
     player_ftps = pd.merge(player_df, df_concat,
                            left_index=True,
                            right_index=True,
-                           how='left')
+                           how='right')
+
+    player_ftps = pad_sequences_data(player_ftps, 'cumulative_gid_vectors_player_dk')
+    player_ftps = pad_sequences_data(player_ftps, 'cumulative_gid_vectors_player_fd')
 
     return player_ftps
 
@@ -287,7 +307,7 @@ def player_data_scoring_only(player_results_df,
 
     player_results_subset_dfs_xs_df = clean_player_variables(player_results_subset_df,
                                                              indicator_cols,
-                                                             drop_player_vars)
+                                                             drop_player_vars).fillna(0)
 
     return team_ftps_allowed, player_results_subset_dfs_ys_df, player_results_subset_dfs_xs_df
 

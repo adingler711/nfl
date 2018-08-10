@@ -2,7 +2,7 @@ import pandas as pd
 import datetime
 import numpy as np
 from configuration_mapping_file import *
-
+from keras.preprocessing.sequence import pad_sequences # Pad your sequences so they are the same length
 
 def chunks(l, n):
     """Yield successive n-sized chunks from l."""
@@ -65,9 +65,11 @@ def clean_player_variables(player_df, indicator_cols, drop_player_vars):
                                drop_player_vars +
                                indicator_cols,
                                axis=1)
-    player_df.loc[:, 'actual_dk_salary'] = player_df['actual_dk_salary'].fillna(0)
-    player_df.loc[:, 'actual_fd_salary'] = player_df['actual_fd_salary'].fillna(0)
+
+    # player_df.loc[:, 'actual_dk_salary'] = player_df['actual_dk_salary'].fillna(0)
+    # player_df.loc[:, 'actual_fd_salary'] = player_df['actual_fd_salary'].fillna(0)
     player_df = calculate_player_age_days(player_df)
+    player_df = player_df.fillna(0)
 
     return player_df
 
@@ -125,18 +127,32 @@ def backfill_posd(player_results_df):
 
 def find_previous_games(cur, vector_dict, game_window=4):
 
+    index_list = list(cur.index)
+    cur = cur.reset_index().drop('index', axis=1)
     iter_df = pd.DataFrame()
-    for idx in cur.index:
+    for idx in xrange(1, cur.shape[0]):
         # create an temporary empty dataframe to assign the 4 day period rolling windows per device
-
-        temp_cur_team_df = cur.loc[:idx][vector_dict.keys()].tail(game_window + 1).cumsum().loc[idx]
+        temp_cur_team_df = cur.loc[:idx][vector_dict.keys()].tail(game_window + 1).cumsum().loc[idx - 1]
         temp_df = temp_cur_team_df.to_frame()
         # The .cumsum() will include the previous day's attribute readings into the new input vector
         iter_df = pd.concat((iter_df,
                              temp_df),
                             axis=1)
 
-    iter_df = iter_df.transpose()
-    iter_df.columns = vector_dict.values()
+    if iter_df.shape[0] > 0:
+        iter_df = iter_df.transpose()
+        iter_df.index = index_list[1:]
+        iter_df.columns = vector_dict.values()
 
     return iter_df
+
+
+def pad_sequences_data(df, col):
+    # max sequence length is 4, which is equal to the rolling window
+    max_schedule_sequence_length = df[col].apply(len).max()
+    train_padded_sequences = pad_sequences(df[col].tolist(),
+                                           max_schedule_sequence_length,
+                                           dtype='float64').tolist()
+    df[col] = pd.Series(train_padded_sequences).apply(np.asarray)
+
+    return df
