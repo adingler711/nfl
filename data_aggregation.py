@@ -219,9 +219,11 @@ def add_rolling_window_stats_team(schedule_df, team_ftps_allowed):
                                  team_ftps_allowed_cumulative_df,
                                  on=['year', 'wk', 'opp'], how='right')
 
-    team_ftps_allowed_cum = pad_sequences_data(team_ftps_allowed_cum, 'cumulative_gid_vectors_team_dk')
-    team_ftps_allowed_cum = pad_sequences_data(team_ftps_allowed_cum, 'cumulative_gid_vectors_team_fd')
-    schedule_df = pad_sequences_data(schedule_df, 'cumulative_gid_vectors_team')
+    team_ftps_allowed_cum = team_ftps_allowed_cum.reset_index().drop('index', axis=1)
+    schedule_df = schedule_df.reset_index().drop('index', axis=1)
+    team_ftps_allowed_cum = pad_sequences_data(team_ftps_allowed_cum.copy(), 'cumulative_gid_vectors_team_dk')
+    team_ftps_allowed_cum = pad_sequences_data(team_ftps_allowed_cum.copy(), 'cumulative_gid_vectors_team_fd')
+    schedule_df = pad_sequences_data(schedule_df.copy(), 'cumulative_gid_vectors_team')
 
     return schedule_df, team_ftps_allowed_cum
 
@@ -286,8 +288,9 @@ def add_rolling_window_stats_player(player_df, player_non_x_cols, save_ftp_cols)
                            right_index=True,
                            how='right')
 
-    player_ftps = pad_sequences_data(player_ftps, 'cumulative_gid_vectors_player_dk')
-    player_ftps = pad_sequences_data(player_ftps, 'cumulative_gid_vectors_player_fd')
+    player_ftps = player_ftps.reset_index().drop('index', axis=1)
+    player_ftps = pad_sequences_data(player_ftps.copy(), 'cumulative_gid_vectors_player_dk')
+    player_ftps = pad_sequences_data(player_ftps.copy(), 'cumulative_gid_vectors_player_fd')
 
     return player_ftps
 

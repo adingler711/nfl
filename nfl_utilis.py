@@ -2,7 +2,7 @@ import pandas as pd
 import datetime
 import numpy as np
 from configuration_mapping_file import *
-from keras.preprocessing.sequence import pad_sequences # Pad your sequences so they are the same length
+from keras.preprocessing.sequence import pad_sequences  # Pad your sequences so they are the same length
 
 def chunks(l, n):
     """Yield successive n-sized chunks from l."""
