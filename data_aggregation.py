@@ -150,7 +150,8 @@ def add_prev_player_stats(args):
     [player_df, player_chunks,
      dk_ftp_player_cols,
      fd_ftp_player_cols,
-     vector_dict] = args
+     vector_dict,
+     player_index_cols] = args
 
     player_ftps_allowed_cumulative_df = pd.DataFrame()
     for player in player_chunks:
@@ -165,14 +166,14 @@ def add_prev_player_stats(args):
         player_ftps_cur['single_input_vector_fd'] = player_ftps_cur.single_input_vector_fd.apply(
             lambda y: [list(y)])
 
-        player_index_cols = ['gid', 'team', 'player']
         player_ftps_allowed_iter_df = find_previous_games(player_ftps_cur,
                                                           vector_dict,
                                                           player_index_cols)
 
-        player_ftps_allowed_cumulative_df = pd.concat((player_ftps_allowed_cumulative_df,
-                                                       # removes players first game
-                                                       player_ftps_allowed_iter_df.loc[1:]))
+        if player_ftps_allowed_iter_df.shape[0] > 1:
+            player_ftps_allowed_cumulative_df = pd.concat((player_ftps_allowed_cumulative_df,
+                                                           # removes players first game
+                                                           player_ftps_allowed_iter_df.loc[1:]))
 
     return player_ftps_allowed_cumulative_df
 
@@ -285,7 +286,8 @@ def add_rolling_window_stats_player(player_df, player_non_x_cols, save_ftp_cols)
                                      dk_ftp_player_cols,
                                      fd_ftp_player_cols)
 
-    player_df_scaled = pd.concat((player_df['player'],
+    player_index_cols = ['gid', 'team', 'player']
+    player_df_scaled = pd.concat((player_df[player_index_cols],
                                   player_df_scaled), axis=1)
 
     vector_player_dict = {'single_input_vector_dk': 'cumulative_gid_vectors_player_dk',
@@ -298,7 +300,7 @@ def add_rolling_window_stats_player(player_df, player_non_x_cols, save_ftp_cols)
     for player_chunk in chunks(unique_player, use_cpu):
         player_input_list.append([player_df_scaled[player_df_scaled['player'].isin(player_chunk)],
                                   player_chunk, dk_cols_dk_scaled, fd_cols_fd_scaled,
-                                  vector_player_dict])
+                                  vector_player_dict, player_index_cols])
 
     df_pool = pool.map(add_prev_player_stats, player_input_list)
     df_concat = pd.concat(df_pool)
@@ -307,7 +309,7 @@ def add_rolling_window_stats_player(player_df, player_non_x_cols, save_ftp_cols)
     pool.join()
 
     player_ftps = pd.merge(player_df, df_concat,
-                           on=['gid', 'team', 'player'],
+                           on=player_index_cols,
                            how='right')
 
     player_ftps = player_ftps.reset_index().drop('index', axis=1)

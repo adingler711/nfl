@@ -143,14 +143,15 @@ def find_previous_games(cur, vector_dict, index_cols, game_window=4):
                              temp_df),
                             axis=1)
         # break
-    iter_df.columns = iter_df.columns + 1
-    iter_df = iter_df.transpose()
-    iter_df.columns = vector_dict.values()
-    temp_cur_team_index = pd.merge(temp_cur_team_index,
-                                   iter_df,
-                                   left_index=True,
-                                   right_index=True,
-                                   how='right')
+    if iter_df.shape[0] > 0:
+        iter_df.columns = iter_df.columns + 1
+        iter_df = iter_df.transpose()
+        iter_df.columns = vector_dict.values()
+        temp_cur_team_index = pd.merge(temp_cur_team_index,
+                                       iter_df,
+                                       left_index=True,
+                                       right_index=True,
+                                       how='right')
 
     return temp_cur_team_index
 
