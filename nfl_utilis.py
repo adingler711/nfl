@@ -3,6 +3,8 @@ import datetime
 import numpy as np
 from configuration_mapping_file import *
 from keras.preprocessing.sequence import pad_sequences  # Pad your sequences so they are the same length
+from sklearn import preprocessing # scale the X varaibles to the same scale
+
 
 def chunks(l, n):
     """Yield successive n-sized chunks from l."""
@@ -125,26 +127,32 @@ def backfill_posd(player_results_df):
     return player_results_df
 
 
-def find_previous_games(cur, vector_dict, game_window=4):
+def find_previous_games(cur, vector_dict, index_cols, game_window=4):
 
-    index_list = list(cur.index)
     cur = cur.reset_index().drop('index', axis=1)
+    temp_cur_team_index = cur[index_cols]
+
     iter_df = pd.DataFrame()
     for idx in xrange(1, cur.shape[0]):
-        # create an temporary empty dataframe to assign the 4 day period rolling windows per device
+        # idx = 171
+        # create an temporary empty dataframe to assign the 4 day period rolling windows per game
         temp_cur_team_df = cur.loc[:idx][vector_dict.keys()].tail(game_window + 1).cumsum().loc[idx - 1]
         temp_df = temp_cur_team_df.to_frame()
         # The .cumsum() will include the previous day's attribute readings into the new input vector
         iter_df = pd.concat((iter_df,
                              temp_df),
                             axis=1)
+        # break
+    iter_df.columns = iter_df.columns + 1
+    iter_df = iter_df.transpose()
+    iter_df.columns = vector_dict.values()
+    temp_cur_team_index = pd.merge(temp_cur_team_index,
+                                   iter_df,
+                                   left_index=True,
+                                   right_index=True,
+                                   how='right')
 
-    if iter_df.shape[0] > 0:
-        iter_df = iter_df.transpose()
-        iter_df.index = index_list[1:]
-        iter_df.columns = vector_dict.values()
-
-    return iter_df
+    return temp_cur_team_index
 
 
 def pad_sequences_data(df, col):
@@ -156,3 +164,25 @@ def pad_sequences_data(df, col):
     df[col] = pd.Series(train_padded_sequences).apply(np.asarray)
 
     return df
+
+
+def scale_cols(df_x_data, dk_cols, fd_cols):
+
+    dk_cols_dk_scaled = []
+    for i in dk_cols:
+        dk_cols_dk_scaled.append(i + '_scaled')
+
+    fd_cols_fd_scaled = []
+    for i in fd_cols:
+        fd_cols_fd_scaled.append(i + '_scaled')
+
+    df_dk_x_scaled = pd.DataFrame(preprocessing.StandardScaler().fit_transform(
+        df_x_data[dk_cols]),
+        columns=[dk_cols_dk_scaled])
+
+    df_fd_x_scaled = pd.DataFrame(preprocessing.StandardScaler().fit_transform(
+        df_x_data[fd_cols]),
+        columns=[fd_cols_fd_scaled])
+    df_x_scaled = pd.concat((df_dk_x_scaled, df_fd_x_scaled), axis=1)
+
+    return df_x_scaled, dk_cols_dk_scaled, fd_cols_fd_scaled

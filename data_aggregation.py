@@ -117,7 +117,8 @@ def add_prev_games_to_schedule(schedule_df, team, schedule_cumulative_df, vector
 
 
 def add_prev_team_stats(team_ftps_allowed_pivot, team, team_ftps_allowed_cumulative_df,
-                        team_ftp_team_cols_dk, team_ftp_team_cols_fd, vector_dict):
+                        team_ftp_team_cols_dk, team_ftp_team_cols_fd,
+                        vector_dict, team_index_cols):
 
     team_ftps_allowed_cur_team = team_ftps_allowed_pivot[team_ftps_allowed_pivot['opp'] == team]
 
@@ -134,15 +135,12 @@ def add_prev_team_stats(team_ftps_allowed_pivot, team, team_ftps_allowed_cumulat
         lambda y: [list(y)])
 
     team_ftps_allowed_iter_df = find_previous_games(team_ftps_allowed_cur_team,
-                                                    vector_dict)
+                                                    vector_dict,
+                                                    team_index_cols)
 
     # removing the first game for each team, there are no previous data to predict current game
-    keep_index = team_ftps_allowed_cur_team.index[1:]
-    team_ftps_allowed_iter_df = pd.concat((team_ftps_allowed_cur_team.loc[keep_index][['year', 'wk', 'opp']],
-                                           team_ftps_allowed_iter_df
-                                           ), axis=1)
     team_ftps_allowed_cumulative_df = pd.concat((team_ftps_allowed_cumulative_df,
-                                                 team_ftps_allowed_iter_df))
+                                                 team_ftps_allowed_iter_df.loc[1:]))
 
     return team_ftps_allowed_cumulative_df
 
@@ -167,10 +165,14 @@ def add_prev_player_stats(args):
         player_ftps_cur['single_input_vector_fd'] = player_ftps_cur.single_input_vector_fd.apply(
             lambda y: [list(y)])
 
-        player_ftps_allowed_iter_df = find_previous_games(player_ftps_cur, vector_dict)
+        player_index_cols = ['gid', 'team', 'player']
+        player_ftps_allowed_iter_df = find_previous_games(player_ftps_cur,
+                                                          vector_dict,
+                                                          player_index_cols)
 
         player_ftps_allowed_cumulative_df = pd.concat((player_ftps_allowed_cumulative_df,
-                                                       player_ftps_allowed_iter_df))
+                                                       # removes players first game
+                                                       player_ftps_allowed_iter_df.loc[1:]))
 
     return player_ftps_allowed_cumulative_df
 
@@ -182,50 +184,62 @@ def add_rolling_window_stats_team(schedule_df, team_ftps_allowed):
     [team_ftp_team_cols,
      team_ftps_allowed_pivot] = create_pos_indicators(team_ftps_allowed, team_index_cols)
 
+    team_ftps_allowed_pivot = team_ftps_allowed_pivot.sort_values(['year', 'wk'],
+                                                                  ascending=True)
+
     team_ftps_allowed_unique = team_ftps_allowed[['year', 'wk', 'opp']].drop_duplicates()
     team_ftp_team_cols_dk = [col for col in team_ftp_team_cols if 'DK' in col]
     team_ftp_team_cols_fd = [col for col in team_ftp_team_cols if 'FD' in col]
 
+    [team_ftps_allowed_pivot_scaled,
+     dk_cols_dk_scaled,
+     fd_cols_fd_scaled] = scale_cols(team_ftps_allowed_pivot,
+                                     team_ftp_team_cols_dk,
+                                     team_ftp_team_cols_fd)
+
+    team_ftps_allowed_pivot_scaled = pd.concat((team_ftps_allowed_pivot[team_index_cols],
+                                                team_ftps_allowed_pivot_scaled), axis=1)
+
     unique_teams = set(list(schedule_df['v']) + list(schedule_df['h']))
-    team_ftps_allowed_pivot = team_ftps_allowed_pivot.sort_values(['year', 'wk'],
-                                                                  ascending=True)
-    schedule_df = schedule_df.sort_values('gid', ascending=True)
-    vector_schedule_dict = {'single_input_vector': 'cumulative_gid_vectors_team'}
+
+    #schedule_df = schedule_df.sort_values('gid', ascending=True)
+    #vector_schedule_dict = {'single_input_vector': 'cumulative_gid_vectors_team'}
     vector_team_dict = {'single_input_vector_dk': 'cumulative_gid_vectors_team_dk',
                         'single_input_vector_fd': 'cumulative_gid_vectors_team_fd'}
 
-    schedule_cumulative_df = pd.DataFrame()
+    #schedule_cumulative_df = pd.DataFrame()
     team_ftps_allowed_cumulative_df = pd.DataFrame()
 
     for team in unique_teams:
 
-        schedule_cumulative_df = add_prev_games_to_schedule(schedule_df,
-                                                            team,
-                                                            schedule_cumulative_df,
-                                                            vector_schedule_dict)
+        #schedule_cumulative_df = add_prev_games_to_schedule(schedule_df,
+        #                                                    team,
+        #                                                    schedule_cumulative_df,
+        #                                                    vector_schedule_dict)
 
-        team_ftps_allowed_cumulative_df = add_prev_team_stats(team_ftps_allowed_pivot,
+        team_ftps_allowed_cumulative_df = add_prev_team_stats(team_ftps_allowed_pivot_scaled,
                                                               team,
                                                               team_ftps_allowed_cumulative_df,
-                                                              team_ftp_team_cols_dk,
-                                                              team_ftp_team_cols_fd,
-                                                              vector_team_dict)
+                                                              dk_cols_dk_scaled,
+                                                              fd_cols_fd_scaled,
+                                                              vector_team_dict,
+                                                              team_index_cols)
 
-    schedule_df = pd.merge(schedule_df, schedule_cumulative_df,
-                           left_index=True, right_index=True)
-    schedule_df = schedule_df.reset_index().drop('index', axis=1)
+    #schedule_df = pd.merge(schedule_df, schedule_cumulative_df,
+    #                       left_index=True, right_index=True)
+    #schedule_df = schedule_df.reset_index().drop('index', axis=1)
 
     team_ftps_allowed_cum = pd.merge(team_ftps_allowed_unique,
                                  team_ftps_allowed_cumulative_df,
                                  on=['year', 'wk', 'opp'], how='right')
 
     team_ftps_allowed_cum = team_ftps_allowed_cum.reset_index().drop('index', axis=1)
-    schedule_df = schedule_df.reset_index().drop('index', axis=1)
+    #schedule_df = schedule_df.reset_index().drop('index', axis=1)
     team_ftps_allowed_cum = pad_sequences_data(team_ftps_allowed_cum.copy(), 'cumulative_gid_vectors_team_dk')
     team_ftps_allowed_cum = pad_sequences_data(team_ftps_allowed_cum.copy(), 'cumulative_gid_vectors_team_fd')
-    schedule_df = pad_sequences_data(schedule_df.copy(), 'cumulative_gid_vectors_team')
+    #schedule_df = pad_sequences_data(schedule_df.copy(), 'cumulative_gid_vectors_team')
 
-    return schedule_df, team_ftps_allowed_cum
+    return team_ftps_allowed_cum #, schedule_df
 
 
 def create_ftp_player_cols(player_df, player_non_x_cols):
@@ -265,6 +279,15 @@ def add_rolling_window_stats_player(player_df, player_non_x_cols, save_ftp_cols)
     player_df = player_df.sort_values('gid', ascending=True)
     player_df = player_df.reset_index().drop('index', axis=1)
 
+    [player_df_scaled,
+     dk_cols_dk_scaled,
+     fd_cols_fd_scaled] = scale_cols(player_df,
+                                     dk_ftp_player_cols,
+                                     fd_ftp_player_cols)
+
+    player_df_scaled = pd.concat((player_df['player'],
+                                  player_df_scaled), axis=1)
+
     vector_player_dict = {'single_input_vector_dk': 'cumulative_gid_vectors_player_dk',
                           'single_input_vector_fd': 'cumulative_gid_vectors_player_fd'}
 
@@ -273,8 +296,8 @@ def add_rolling_window_stats_player(player_df, player_non_x_cols, save_ftp_cols)
 
     player_input_list = []
     for player_chunk in chunks(unique_player, use_cpu):
-        player_input_list.append([player_df[player_df['player'].isin(player_chunk)],
-                                  player_chunk, dk_ftp_player_cols, fd_ftp_player_cols,
+        player_input_list.append([player_df_scaled[player_df_scaled['player'].isin(player_chunk)],
+                                  player_chunk, dk_cols_dk_scaled, fd_cols_fd_scaled,
                                   vector_player_dict])
 
     df_pool = pool.map(add_prev_player_stats, player_input_list)
@@ -284,8 +307,7 @@ def add_rolling_window_stats_player(player_df, player_non_x_cols, save_ftp_cols)
     pool.join()
 
     player_ftps = pd.merge(player_df, df_concat,
-                           left_index=True,
-                           right_index=True,
+                           on=['gid', 'team', 'player'],
                            how='right')
 
     player_ftps = player_ftps.reset_index().drop('index', axis=1)
@@ -304,15 +326,12 @@ def player_data_scoring_only(player_results_df,
     player_results_subset_df = player_results_df[player_results_df['posd'].isin(
         offensive_skills_positions)]
     team_ftps_allowed = team_ftps_allow(player_results_subset_df)
-    player_results_subset_dfs_ys_df = player_results_subset_df[['gid', 'team', 'player',
-                                                                'year', 'wk', 'nflid'] +
-                                                               ftp_cols_rename.values()]
 
     player_results_subset_dfs_xs_df = clean_player_variables(player_results_subset_df,
                                                              indicator_cols,
                                                              drop_player_vars).fillna(0)
 
-    return team_ftps_allowed, player_results_subset_dfs_ys_df, player_results_subset_dfs_xs_df
+    return team_ftps_allowed, player_results_subset_dfs_xs_df
 
 if __name__ == '__main__':
 
