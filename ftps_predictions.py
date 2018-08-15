@@ -52,3 +52,19 @@ def convert_onehot_y(y_var, binary_threshold):
     return one_hot_labels
 
 # Convert labels to categorical one-hot encoding
+
+
+def split_data(data_df, y_var, n_games, n_features, train_percent):
+
+    cur_game_stats = [col for col in data_df.columns if '(t)' in col]
+    train_X, test_X, train_y, test_y = train_test_split(np.array(data_df.drop(cur_game_stats, axis=1)),
+                                                        np.array(data_df[y_var]),
+                                                        train_size=train_percent, test_size=1 - train_percent)
+
+    print(train_X.shape, len(train_X), train_y.shape)
+    # reshape input to be 3D [samples, games, features]
+    train_X = train_X.reshape((train_X.shape[0], n_games, n_features))
+    test_X = test_X.reshape((test_X.shape[0], n_games, n_features))
+    print(train_X.shape, train_y.shape, test_X.shape, test_y.shape)
+
+    return train_X, test_X, train_y, test_y

@@ -266,15 +266,18 @@ def create_ftp_player_cols(player_df, player_non_x_cols):
 
 def add_rolling_window_stats_player(player_df, player_non_x_cols, save_ftp_cols):
 
-    [dk_ftp_player_cols,
-     fd_ftp_player_cols] = create_ftp_player_cols(player_df, player_non_x_cols)
-
-    pd.DataFrame(dk_ftp_player_cols,
-                 columns=['dk_ftp_player_cols_']).\
-        to_csv('data/dk_ftp_player_cols_' + save_ftp_cols + '.csv', index=False)
-    pd.DataFrame(fd_ftp_player_cols,
-                 columns=['fd_ftp_player_cols_']). \
-        to_csv('data/fd_ftp_player_cols_' + save_ftp_cols + '.csv', index=False)
+    dk_ftp_player_cols = ['data_DK_pts', 'py', 'ints', 'tdp', 'ry', 'tdr',
+                      'rec', 'recy', 'tdrec', 'tdret', 'fuml', 'pa', 'ra', 'trg']
+    fd_ftp_player_cols = ['data_FD_pts', 'py', 'ints', 'tdp', 'ry', 'tdr',
+                          'rec', 'recy', 'tdrec', 'tdret', 'fuml', 'pa', 'ra', 'trg']
+    # [dk_ftp_player_cols,
+    # fd_ftp_player_cols] = create_ftp_player_cols(player_df, player_non_x_cols)
+    #pd.DataFrame(dk_ftp_player_cols,
+    #             columns=['dk_ftp_player_cols_']).\
+    #    to_csv('data/dk_ftp_player_cols_' + save_ftp_cols + '.csv', index=False)
+    #pd.DataFrame(fd_ftp_player_cols,
+    #             columns=['fd_ftp_player_cols_']). \
+    #    to_csv('data/fd_ftp_player_cols_' + save_ftp_cols + '.csv', index=False)
 
     unique_player = list(player_df['player'].unique())
     player_df = player_df.sort_values('gid', ascending=True)
@@ -332,6 +335,7 @@ def player_data_scoring_only(player_results_df,
     player_results_subset_dfs_xs_df = clean_player_variables(player_results_subset_df,
                                                              indicator_cols,
                                                              drop_player_vars).fillna(0)
+    player_results_subset_dfs_xs_df = player_results_subset_dfs_xs_df.reset_index().drop('index', axis=1)
 
     return team_ftps_allowed, player_results_subset_dfs_xs_df
 

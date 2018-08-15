@@ -171,11 +171,11 @@ def scale_cols(df_x_data, dk_cols, fd_cols):
 
     dk_cols_dk_scaled = []
     for i in dk_cols:
-        dk_cols_dk_scaled.append(i + '_scaled')
+        dk_cols_dk_scaled.append(i + '_scaled_dk')
 
     fd_cols_fd_scaled = []
     for i in fd_cols:
-        fd_cols_fd_scaled.append(i + '_scaled')
+        fd_cols_fd_scaled.append(i + '_scaled_fd')
 
     df_dk_x_scaled = pd.DataFrame(preprocessing.StandardScaler().fit_transform(
         df_x_data[dk_cols]),
