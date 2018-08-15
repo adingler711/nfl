@@ -1,5 +1,4 @@
 import copy
-from sklearn.preprocessing import MinMaxScaler
 from multiprocessing import Pool, cpu_count
 from ftps_functions import map_historical_ftps
 from nfl_utils import *
@@ -33,20 +32,6 @@ def series_to_supervised(data, input_cols, n_games, n_in=1, n_out=1):
     agg = agg.loc[n_in:].fillna(0)
 
     return agg
-
-
-def scale_cols(values, ftp_player_cols, scale_suffix):
-    # normalize features
-    scaler = MinMaxScaler(feature_range=(0, 1))
-    scaled = scaler.fit_transform(values)
-
-    cols_scaled = []
-    for i in ftp_player_cols:
-        cols_scaled.append(i + scale_suffix)
-
-    scaled_df = pd.DataFrame(scaled, columns=cols_scaled)
-
-    return scaled_df, cols_scaled
 
 
 def create_stat_lag_variables(args):
@@ -102,30 +87,27 @@ def create_stat_lag_variables_pool(df, cols_scaled, n_games,
 
 
 def create_player_scaled_lag_variables(player_df, n_games,
-                                       ftp_player_cols,
-                                       y_var,
+                                       player_idx_cols,
                                        binary_threshold=0):
 
     if binary_threshold > 0:
-        player_df.loc[:, y_var+'_binary'] = player_df.loc[:, y_var]
-        player_df.loc[player_df[y_var+'_binary'] <= binary_threshold, y_var+'_binary'] = 0.
-        player_df.loc[player_df[y_var+'_binary'] > binary_threshold, y_var+'_binary'] = 1.
-        y_var = y_var + '_binary'
+        player_df.loc[:, 'data_FD_pts_binary'] = player_df.loc[:, 'data_FD_pts']
+        player_df.loc[player_df['data_FD_pts_binary'] <= binary_threshold, 'data_FD_pts_binary'] = 0.
+        player_df.loc[player_df['data_FD_pts_binary'] > binary_threshold, 'data_FD_pts_binary'] = 1.
+
+        player_df.loc[:, 'data_DK_pts_binary'] = player_df.loc[:, 'data_DK_pts']
+        player_df.loc[player_df['data_DK_pts_binary'] <= binary_threshold, 'data_DK_pts_binary'] = 0.
+        player_df.loc[player_df['data_DK_pts_binary'] > binary_threshold, 'data_DK_pts_binary'] = 1.
 
     player_df = player_df.fillna(0)
-    ftp_player_cols = ftp_player_cols + [y_var]
+    player_cols = list(player_df.columns)
+    ftp_player_cols = list(set(player_cols) - set(player_idx_cols))
     values = player_df[ftp_player_cols].values
     # ensure all data is float
     values = values.astype('float32')
 
-    if 'DK' in y_var:
-        scaled_suffix = '_scaled_dk'
-    else:
-        scaled_suffix = '_scaled_fd'
-
     [player_scaled_df,
-     cols_scaled] = scale_cols(values, ftp_player_cols,
-                               scale_suffix=scaled_suffix)
+     cols_scaled] = scale_cols(values, ftp_player_cols)
 
     player_scaled_df = pd.concat((player_df, player_scaled_df), axis=1)
     player_n_games_df = create_stat_lag_variables_pool(player_scaled_df,
@@ -133,11 +115,11 @@ def create_player_scaled_lag_variables(player_df, n_games,
                                                        n_games,
                                                        data_source='player',
                                                        sort_list=['gid'],
-                                                       index_cols=['year', 'wk', 'gid', 'team', 'opp', 'player'])
-    y_var_scaled = y_var + scaled_suffix + '(t)'
-    n_features = len(ftp_player_cols)
+                                                       index_cols=['year', 'wk', 'gid', 'team',
+                                                                   'opp', 'player', 'fname',
+                                                                   'lname', 'pname', 'nflid'])
 
-    return player_n_games_df, y_var_scaled, n_features
+    return player_n_games_df
 
 
 def create_team_scaled_lag_varaibles(team_ftps_allowed, team_index_cols, y_var, n_games):
@@ -148,25 +130,12 @@ def create_team_scaled_lag_varaibles(team_ftps_allowed, team_index_cols, y_var, 
     team_ftps_allowed_pivot = team_ftps_allowed_pivot.sort_values(['year', 'wk'],
                                                                   ascending=True)
 
-    # will use to merege back onto original df with index
-    team_ftps_allowed_unique = team_ftps_allowed[team_index_cols].drop_duplicates()
-
-    if 'DK' in y_var:
-        scaled_suffix = '_scaled_dk'
-        ftp_pts = 'DK'
-    else:
-        scaled_suffix = '_scaled_fd'
-        ftp_pts = 'FD'
-
-    team_ftp_team_cols = [col for col in team_ftp_team_cols if ftp_pts in col]
-
     values = team_ftps_allowed_pivot[team_ftp_team_cols].values
     # ensure all data is float
     values = values.astype('float32')
 
     [team_scaled_df,
-     cols_scaled] = scale_cols(values, team_ftp_team_cols,
-                               scale_suffix=scaled_suffix)
+     cols_scaled] = scale_cols(values, team_ftp_team_cols)
 
     team_scaled_df = pd.concat((team_ftps_allowed
                                 [team_index_cols],
@@ -180,9 +149,7 @@ def create_team_scaled_lag_varaibles(team_ftps_allowed, team_index_cols, y_var, 
                                                      sort_list=['year', 'wk'],
                                                      index_cols=team_index_cols)
 
-    n_features = len(cols_scaled)
-
-    return team_n_games_df, n_features
+    return team_n_games_df
 
 
 def create_player_data(cols_keep,

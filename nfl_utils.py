@@ -1,9 +1,8 @@
 import pandas as pd
 import datetime
 import numpy as np
+from sklearn.preprocessing import MinMaxScaler
 from configuration_mapping_file import *
-from keras.preprocessing.sequence import pad_sequences  # Pad your sequences so they are the same length
-from sklearn import preprocessing # scale the X varaibles to the same scale
 
 
 def chunks(l, n):
@@ -32,10 +31,24 @@ def add_injury_info(injury_file_path, offense_df_merged):
     return offense_df_merged_w_game
 
 
+def scale_cols(values, ftp_player_cols):
+    # normalize features
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    scaled = scaler.fit_transform(values)
+
+    cols_scaled = []
+    for i in ftp_player_cols:
+        cols_scaled.append(i + '_scaled')
+
+    scaled_df = pd.DataFrame(scaled, columns=cols_scaled)
+
+    return scaled_df, cols_scaled
+
+
 def create_pos_indicators(df, index_cols):
 
     df_pivot = df.pivot_table(index=index_cols,
-                              columns=['posd', 'posd_level2'],
+                              columns=['posd_level1', 'posd_level2'],
                               aggfunc='sum',
                               fill_value=0)
 
