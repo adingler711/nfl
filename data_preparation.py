@@ -117,12 +117,14 @@ def create_player_scaled_lag_variables(player_df, n_games,
                                                        sort_list=['gid'],
                                                        index_cols=['year', 'wk', 'gid', 'team',
                                                                    'opp', 'player', 'fname',
-                                                                   'lname', 'pname', 'nflid'])
+                                                                   'lname', 'pname', 'nflid',
+                                                                   'data_FD_pts', 'data_FD_pts_binary',
+                                                                   'data_DK_pts', 'data_DK_pts_binary'])
 
     return player_n_games_df
 
 
-def create_team_scaled_lag_varaibles(team_ftps_allowed, team_index_cols, y_var, n_games):
+def create_team_scaled_lag_varaibles(team_ftps_allowed, team_index_cols, n_games):
 
     [team_ftp_team_cols,
      team_ftps_allowed_pivot] = create_pos_indicators(team_ftps_allowed, team_index_cols)
@@ -205,19 +207,34 @@ def create_player_data(cols_keep,
 
     offense_df_merged_w_ftps.rename(columns=ftp_cols_rename, inplace=True)
 
-    return offense_df_merged_w_ftps
+    team_snaps = offense_df_merged_w_ftps.groupby(['team', 'year',
+                                                   'wk', 'gid'])['snp'].max().reset_index()
+
+    return offense_df_merged_w_ftps, team_snaps
 
 
 def player_data_scoring_only(player_results_df,
+                             team_snaps,
                              offensive_skills_positions,
                              indicator_cols,
-                             drop_player_vars):
+                             drop_player_vars,
+                             ftp_cols):
 
     # filter to dfs scoring offensive players only
     player_results_subset_df = player_results_df[player_results_df['posd'].isin(
         offensive_skills_positions)]
 
+    index_pts = player_results_subset_df[['gid', 'player', 'year', 'wk',
+                                          'data_FD_pts', 'data_DK_pts']]
+    index_pts.to_csv('data/player_historical_ftp.csv', index=False)
+
     team_ftps_allowed_df = team_ftps_allow(player_results_subset_df)
+
+    team_ftp_totals_df = team_ftp_totals(player_results_df,
+                                         team_snaps,
+                                         ftp_cols)
+    player_results_subset_df = add_ftp_totals(player_results_subset_df,
+                                              team_ftp_totals_df)
 
     player_results_subset_dfs_xs_df = clean_player_variables(player_results_subset_df,
                                                              indicator_cols,
@@ -257,3 +274,49 @@ def team_ftps_allow(player_results_subset_df):
     team_ftps_allowed.rename(columns={'posd': 'posd_level1'}, inplace=True)
 
     return team_ftps_allowed
+
+
+def team_ftp_totals(df, snap_df, ftp_cols):
+
+    team_ftp_totals_df = df.groupby(['team', 'opp', 'year',
+                                                 'wk', 'gid'])[
+        ftp_cols].sum().reset_index().drop('snp', axis=1)
+
+    team_ftp_totals_df = pd.merge(team_ftp_totals_df,
+                               snap_df,
+                               on=['team', 'year',
+                                   'wk', 'gid'],
+                               how='left')
+
+    return team_ftp_totals_df
+
+
+def add_ftp_totals(df, team_ftp_totals_df):
+
+    for suffix in ['_opp_total', '_team_total']:
+        team_ftp_totals_df_temp = team_ftp_totals_df.copy()
+        if 'opp' in suffix:
+            left_cols_join = ['team', 'opp', 'year', 'wk', 'gid']
+            right_cols_join = ['opp_opp_total', 'team_opp_total',
+                               'year_opp_total', 'wk_opp_total',
+                               'gid_opp_total']
+        else:
+            left_cols_join = ['team', 'opp', 'year', 'wk', 'gid']
+            right_cols_join = ['team_team_total', 'opp_team_total',
+                               'year_team_total', 'wk_team_total',
+                               'gid_team_total']
+
+        for col in team_ftp_totals_df_temp.columns:
+            team_ftp_totals_df_temp.rename(columns={col: col + suffix}, inplace=True)
+
+        df = pd.merge(df,
+                      team_ftp_totals_df_temp,
+                      left_on=left_cols_join,
+                      right_on=right_cols_join,
+                      how='left').drop(right_cols_join, axis=1)
+
+    for col in ftp_cols:
+        df.loc[:, col] = (df[col] / df[col + '_team_total'])
+        df = df.drop(col + '_team_total', axis=1)
+
+    return df

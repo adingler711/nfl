@@ -55,19 +55,19 @@ def map_historical_ftps(dk_historical_pts_file, offense_df_merged):
 
     if '_DK_' in dk_historical_pts_file:
         offense_df_merged_w_ftps = pd.merge(offense_df_merged,
-                                            historical_salaries_df[['DK points', 'DK salary',
+                                            historical_salaries_df[['DK salary',
                                                                     'lname', 'fname', 'Year', 'Week', 'Team']],
                                             left_on=['lname', 'fname', 'year', 'wk', 'team'],
                                             right_on=['lname', 'fname', 'Year', 'Week', 'Team'],
                                             how='left').drop(['Year', 'Week', 'Team'], axis=1)
-        offense_df_merged_w_ftps.loc[:, 'dk_ftps'] = calculate_ftps(offense_df_merged_w_ftps, dk_scoring_by_col)
+        #offense_df_merged_w_ftps.loc[:, 'dk_ftps'] = calculate_ftps(offense_df_merged_w_ftps, dk_scoring_by_col)
     else:
         offense_df_merged_w_ftps = pd.merge(offense_df_merged,
-                                            historical_salaries_df[['FD points', 'FD salary',
+                                            historical_salaries_df[['FD salary',
                                                                     'lname', 'fname', 'Year', 'Week', 'Team']],
                                             left_on=['lname', 'fname', 'year', 'wk', 'team'],
                                             right_on=['lname', 'fname', 'Year', 'Week', 'Team'],
                                             how='left').drop(['Year', 'Week', 'Team'], axis=1)
-        offense_df_merged_w_ftps.loc[:, 'fd_ftps'] = score_player(offense_df_merged_w_ftps, fd_scoring_pbp)
+        #offense_df_merged_w_ftps.loc[:, 'fd_ftps'] = score_player(offense_df_merged_w_ftps, fd_scoring_pbp)
 
     return offense_df_merged_w_ftps

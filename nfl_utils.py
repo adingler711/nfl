@@ -1,6 +1,6 @@
 import pandas as pd
-import datetime
 import numpy as np
+import datetime
 from sklearn.preprocessing import MinMaxScaler
 from configuration_mapping_file import *
 
@@ -88,30 +88,37 @@ def home_indicator(df):
                     0)  # type: int
 
 
+def fix_gstat(df):
+
+    df.loc[:, 'gstat'].replace(gstat_mapping, inplace=True)
+    gstat_fix_id = df[(df['gstat'] == 'Out') &
+                      (df['data_DK_pts'] > 0)].index
+    df.loc[gstat_fix_id, 'gstat'] = 'Playing'
+
+    return df
+
+
 def clean_player_variables(player_df, indicator_cols, drop_player_vars):
 
     player_df.loc[:, 'posd_level2'] = player_df['posd']
     player_df.loc[:, 'posd'].replace(posd_parent_pos_mapping, inplace=True)
-    player_df.loc[:, 'gstat'].replace(gstat_mapping, inplace=True)
+    player_df = fix_gstat(player_df)
+    player_df.rename(columns={'posd': 'posd_level1'}, inplace=True)
 
     # I will drop one variable when I create the embedded layer to avoid the dummy variable trap
     just_dummies = pd.get_dummies(player_df[indicator_cols],
-                                  drop_first=False)
+                                  drop_first=True)
     player_df = pd.concat([player_df, just_dummies], axis=1)
-    indicator_cols.remove('opp')
     drop_ftps_cols = ftp_cols_rename.values()
     drop_ftps_cols.remove('data_FD_pts')
     drop_ftps_cols.remove('data_DK_pts')
-    drop_ftps_cols.remove('actual_dk_salary')
-    drop_ftps_cols.remove('actual_fd_salary')
 
     player_df = player_df.drop(drop_ftps_cols +
                                drop_player_vars +
                                indicator_cols,
                                axis=1)
-
-    # player_df.loc[:, 'actual_dk_salary'] = player_df['actual_dk_salary'].fillna(0)
-    # player_df.loc[:, 'actual_fd_salary'] = player_df['actual_fd_salary'].fillna(0)
+    player_df.loc[:, 'prc_pc'] = player_df['pc'] / player_df['pa']
+    player_df.loc[:, 'prc_pc'] = player_df['prc_pc'].replace(np.inf, 0)
     player_df = calculate_player_age_days(player_df)
     player_df = player_df.fillna(0)
 
