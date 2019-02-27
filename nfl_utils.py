@@ -98,11 +98,11 @@ def fix_gstat(df):
     return df
 
 
-def clean_player_variables(player_df, indicator_cols, drop_player_vars):
+def clean_player_variables(player_df, indicator_cols):
 
     player_df.loc[:, 'posd_level2'] = player_df['posd']
     player_df.loc[:, 'posd'].replace(posd_parent_pos_mapping, inplace=True)
-    player_df = fix_gstat(player_df)
+    # player_df = fix_gstat(player_df)
     player_df.rename(columns={'posd': 'posd_level1'}, inplace=True)
 
     # I will drop one variable when I create the embedded layer to avoid the dummy variable trap
@@ -114,12 +114,10 @@ def clean_player_variables(player_df, indicator_cols, drop_player_vars):
     drop_ftps_cols.remove('data_DK_pts')
 
     player_df = player_df.drop(drop_ftps_cols +
-                               drop_player_vars +
                                indicator_cols,
                                axis=1)
-    player_df.loc[:, 'prc_pc'] = player_df['pc'] / player_df['pa']
-    player_df.loc[:, 'prc_pc'] = player_df['prc_pc'].replace(np.inf, 0)
-    player_df = calculate_player_age_days(player_df)
+
+    # player_df = calculate_player_age_days(player_df)
     player_df = player_df.fillna(0)
 
     return player_df
