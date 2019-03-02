@@ -37,9 +37,11 @@ def update_results(years, weeks,
                    previous_dfs_results,
                    prev_results):
     if 'DK' in previous_dfs_results:
-        base_url = "http://rotoguru1.com/cgi-bin/fyday.pl?game=dk&scsv=1&week=WEEK&year=YEAR"
+        base_url = 'http://rotoguru1.com/cgi-bin/fyday.pl?week=1&game=dk&scsv=1'
+            #  "http://rotoguru1.com/cgi-bin/fyday.pl?game=dk&scsv=1&week=WEEK&year=YEAR"
     else:
-        base_url = "http://rotoguru1.com/cgi-bin/fyday.pl?game=fd&scsv=1&week=WEEK&year=YEAR"
+        base_url = 'http://rotoguru1.com/cgi-bin/fyday.pl?week=1&game=dk&scsv=1'
+        #  "http://rotoguru1.com/cgi-bin/fyday.pl?game=fd&scsv=1&week=WEEK&year=YEAR"
 
     if prev_results is False:
         prev_dfs_results_df = pd.DataFrame()
